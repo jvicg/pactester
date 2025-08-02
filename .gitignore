@@ -1,0 +1,8 @@
+.*
+dist/
+wpad.dat
+!.github/
+!.gitignore
+*__pycache__*
+pactester.egg-info/
+!.pre-commit-config.yaml

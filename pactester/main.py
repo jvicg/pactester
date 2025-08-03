@@ -12,7 +12,7 @@ from hashlib import sha1
 
 import pacparser
 
-from pactester.config import Cache, Config
+from pactester.config import Config, Options, CacheDirCreationFailed
 from pactester import (
     __version__,
     __progname__,
@@ -26,6 +26,7 @@ ERR_NO_PAC_FILE = 1
 ERR_NO_DATA_PROVIDED = 2
 ERR_UNABLE_TO_DOWNLOAD_PAC = 3
 ERR_COULD_NOT_PARSE_PAC_FILE = 4
+ERR_COULD_NOT_CREATE_CACHE_DIR = 5
 
 logger = logging.getLogger(__name__)
 
@@ -42,94 +43,90 @@ def gen_sha_hash(s: str, length: int = 16) -> str:
     """
     return sha1(s.encode("utf-8")).hexdigest()[:length]
 
-def gen_pac_file_based_on_url(wpad_url: str) -> str:
+def gen_pac_file_based_on_url(pac_url: str) -> str:
     """
     Generate a PAC file based on the URL hash. This will store an unique name for each PAC url.
 
     Args:
-        wpad_url (str): PAC file URL.
+        pac_url (str): PAC file URL.
 
     Returns:
         Path: Object with the file.
     """
-    return gen_sha_hash(wpad_url)
+    return gen_sha_hash(pac_url)
 
-def gen_pac_file_based_on_timestamp(wpad_file: str) -> str:
+def gen_pac_file_based_on_timestamp(pac_file: str) -> str:
     """
-    Generate a cache filename for the formatted WPAD file based on the original file path and last modification time.
+    Generate a cache filename for the formatted PAC file based on the original file path and last modification time.
 
     Args:
-        wpad_file (str): Path to the WPAD.
+        pac_file (str): Path to the PAC.
     
     Returns:
         Path: Object with the file.
     """
-    stat = os.stat(wpad_file)
-    unique_str = f"{wpad_file}:{stat.st_mtime}"
+    stat = os.stat(pac_file)
+    unique_str = f"{pac_file}:{stat.st_mtime}"
     return gen_sha_hash(unique_str)
 
-def format_wpad_file(wpad_file: str, cache: Cache, use_cache: bool = True) -> str:
+def format_pac_file(options: Options) -> str:
     """
     Properly format PAC file as utf-8-sig.
     
     Args:
-        wpad_file (str): Path to the PAC file.
-        cache (Path): Cache object.
-        use_cache (bool, optional): Use cached files.
+        options (Options): Object with all the program options.
 
     Returns:
         str: Path of the file.
     """
-    cache_file = cache.dir / gen_pac_file_based_on_timestamp(wpad_file)
+    cache_file = options.cache_dir / gen_pac_file_based_on_timestamp(options.pac_file) # type: ignore
 
-    if cache_file.exists() and use_cache:
-        logger.info(f"Using cached formatted WPAD file: '{cache_file}'")
+    if cache_file.exists() and options.use_cache:
+        logger.info(f"Using cached formatted PAC file: '{cache_file}'")
         return str(cache_file)
 
-    with open(wpad_file, "r", encoding="utf-8-sig") as f:
+    with open(options.pac_file, "r", encoding="utf-8-sig") as f: # type: ignore
         content = f.read()
     
     with open(cache_file, "w", encoding="utf-8") as f:
         f.write(content)
     
-    logger.info(f"Formatted WPAD file saved at: '{cache_file}'")
+    logger.info(f"Formatted PAC file saved at: '{cache_file}'")
     return str(cache_file)
 
-def get_wpad_from_http(wpad_url: str, cache: Cache, use_cache: bool = True) -> str:
+def get_pac_from_http(options: Options) -> str:
     """
-    Download the WPAD file and write it into a file.
+    Download the PAC file and write it into a file.
 
     Args:
-        wpad_url (str): URL of the WPAD file.
-        cache (Cache): Cache object.
-        use_cache (bool, optional): Use cached files.
+        options (Options): Object with all the program options.
     
     Returns:
-        str: Path to the downloaded WPAD file.
+        str: Path to the downloaded PAC file.
     """
-    wpad_file = cache.dir / gen_pac_file_based_on_url(wpad_url)
+    pac_file = options.cache_dir / gen_pac_file_based_on_url(options.pac_url) # type: ignore
 
     # Get file from cache if exists and didn't expire
-    if wpad_file.exists() and use_cache:
-        cache_age = time.time() - wpad_file.stat().st_mtime
+    if pac_file.exists() and options.use_cache:
+        cache_age = time.time() - pac_file.stat().st_mtime
         
-        if cache_age < cache.expires:
-            logger.info(f"Using cached WPAD file: '{wpad_file}'")
-            return str(wpad_file)
+        if cache_age < options.cache_expires:
+            logger.info(f"Using cached PAC file: '{pac_file}'")
+            return str(pac_file)
         else:
-            logger.info(f"Cache expired, removing: '{wpad_file}'")
-            wpad_file.unlink() # Delete file since it expired
+            logger.info(f"Cache expired, removing: '{pac_file}'")
+            pac_file.unlink() # Delete file since it expired
 
     # Download if cache file expires or doesn't exist
-    logger.info(f"Downloading WPAD from: '{wpad_url}'")
-    r = requests.get(wpad_url)
+    logger.info(f"Downloading PAC from: '{options.pac_url}'")
+    r = requests.get(options.pac_url) # type: ignore
     r.raise_for_status()
 
-    with open(wpad_file, "w", encoding="utf-8") as f:
+    with open(pac_file, "w", encoding="utf-8") as f:
         f.write(r.text)
     
-    logger.info(f"Saved WPAD to cache: '{wpad_file}'")
-    return str(wpad_file)
+    logger.info(f"Saved PAC to cache: '{pac_file}'")
+    return str(pac_file)
 
 def purge_cache_dir(cache_dir) -> None:
     """
@@ -207,30 +204,30 @@ def build_arg_parse() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter
     )
 
-    exclusive_group = parser.add_mutually_exclusive_group(required=False)
-
-    exclusive_group.add_argument(
-        "-u", "--wpad-url", 
-        default=None,
-        metavar="URL",
-        type=str,
-        help=f"Get the WPAD file from an HTTP server."
-    )
-
-    exclusive_group.add_argument(
-        "-f", "--wpad-file",
-        default=None,
-        metavar="FILE",
-        type=str,
-        help="Path to the WPAD file."
-    )
-
     parser.add_argument(
         "hostnames",
         nargs="+",
         metavar="hostname",
         type=str,
         help="URLs or hostnames to test."
+    )
+
+    exclusive_group = parser.add_mutually_exclusive_group(required=False)
+
+    exclusive_group.add_argument(
+        "-u", "--pac-url", 
+        default=None,
+        metavar="URL",
+        type=str,
+        help=f"Get the PAC file from an HTTP server."
+    )
+
+    exclusive_group.add_argument(
+        "-f", "--pac-file",
+        default=None,
+        metavar="FILE",
+        type=str,
+        help="Path to the PAC file."
     )
 
     parser.add_argument(
@@ -263,17 +260,19 @@ def build_arg_parse() -> argparse.ArgumentParser:
     parser.add_argument(
         "-e", "--cache-expires",
         type=int,
-        help="Cache expiration time in seconds.."
+        help="Cache expiration time in seconds."
     )
 
     parser.add_argument(
         "-v", "--verbose",
+        default=False,
         action="store_true",
         help="Enable verbose logging output."
     )
 
     parser.add_argument(
         "-vvv", "--debug",
+        default=False,
         action="store_true",
         help="Enable debug logging output."
     )
@@ -284,6 +283,7 @@ def build_arg_parse() -> argparse.ArgumentParser:
         version=f"%(prog)s {__version__}",
         help="Show program's version number and exit."
     )
+
     return parser
 
 def setup_logging(debug: bool, verbose: bool) -> None:
@@ -309,70 +309,63 @@ def setup_logging(debug: bool, verbose: bool) -> None:
 def main():
     parser = build_arg_parse()
     args = parser.parse_args()
+    
+    # Load config file and setup logging
     setup_logging(debug=args.debug, verbose=args.verbose)
-    
-    # Read the config file
     config = Config.load()
-    
-    # Get options
-    options = {
-        "hostnames": args.hostnames,
-        "check_dns": args.check_dns or config.get("check_dns", False),
-        "purge_cache": args.purge_cache,
-        "wpad_url": args.wpad_url or config.get("wpad_url", ""),
-        "wpad_file": args.wpad_file or config.get("wpad_file", ""),
-        "use_cache": not args.no_cache or not config.get("use_cache", False),
-    }
 
-    # Init cache
-    cache = Cache.from_sources(args, config)
+    try:
+        options = Options(args, config)
 
-    # Raise error if no wpad_url or wpad_file were provided
-    if not options.get("wpad_url") and not options.get("wpad_file"):
-        logger.error(
-            f"You must provide either an URL to get the WPAD or a path to a WPAD file. "
-            f"Use config file {Config.CONFIG_FILE} or provide it with -f or -u params."
-        )
-        sys.exit(ERR_NO_DATA_PROVIDED)
+        # Raise error if no pac_url or pac_file were provided
+        if options.pac_url is None and options.pac_file is None:
+            logger.error(
+                f"You must provide either an URL to get the PAC or a path to a PAC file. "
+                f"Use config file '{Config.CONFIG_FILE}' or provide it with -f or -u params."
+            )
+            sys.exit(ERR_NO_DATA_PROVIDED)
 
-    # Log the selected options for debug level
-    for key, value in options.items():
-        if value is not None and value != "":
-            logger.debug(f"Selected '{key}: {value}'.")
+        # Log the selected options for debug level
+        for key, value in options:
+            if value is not None:
+                logger.debug(f"Selected '{key}: {value}'.")
 
-    # Clear cache directory if specified
-    purge_cache_dir(cache.dir) if options["purge_cache"] else None
+        # Clear cache directory if specified
+        purge_cache_dir(options.cache_dir) if options.purge_cache else None
 
-    try: 
-        wpad_file_formatted = (
-            format_wpad_file(options["wpad_file"], cache, options["use_cache"]) if options["wpad_file"] != ""
-            else get_wpad_from_http(options["wpad_url"], cache, options["use_cache"])
+        pac_file_formatted = (
+            format_pac_file(options) if options.pac_file is not None
+            else get_pac_from_http(options) 
         )
 
         pacparser.init()
-        pacparser.parse_pac_file(wpad_file_formatted)
+        pacparser.parse_pac_file(pac_file_formatted)
 
-        for hostname in options["hostnames"]:
+        for hostname in options.hostnames:
             formatted_hostname = hostname if is_url(hostname) else format_hostname(hostname)
             proxy = pacparser.find_proxy(formatted_hostname)
 
             # Check DNS if flag specified
-            if options["check_dns"] and not is_resolvable(hostname):
+            if options.check_dns and not is_resolvable(hostname):
                 logger.warning(f"Hostname '{hostname}' could not be resolved via DNS.")
 
             sys.stdout.write(f"RESULT: {hostname} -> {proxy}\n")
             sys.stdout.flush()
     
+    except CacheDirCreationFailed as e:
+        logger.error(f"Error creating cache dir: {e}")
+        sys.exit(ERR_COULD_NOT_CREATE_CACHE_DIR)
+    
     except requests.RequestException as e:
-        logger.error(f"Error downloading the WPAD file: '{e}'")
+        logger.error(f"Error downloading the PAC file: '{e}'")
         sys.exit(ERR_UNABLE_TO_DOWNLOAD_PAC)
 
     except FileNotFoundError as e:
-        logger.error(f"The WPAD file '{args.wpad_file}' was not found. Provide it with -f FILE or use -u URL to download.")
+        logger.error(f"The PAC file '{args.pac_file}' was not found. Provide it with -f FILE or use -u URL to download.")
         sys.exit(ERR_NO_PAC_FILE)
 
     except Exception as e:
-        logger.error(f"The WPAD file couldn't be parsed: {e}")
+        logger.error(f"The PAC file couldn't be parsed: {e}")
         sys.exit(ERR_COULD_NOT_PARSE_PAC_FILE)
     
     finally:

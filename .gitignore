@@ -4,5 +4,6 @@ wpad.dat
 !.github/
 !.gitignore
 *__pycache__*
+!.python-version
 pactester.egg-info/
 !.pre-commit-config.yaml

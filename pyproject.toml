@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "pactester"
-version = "1.0.0"
+version = "0.1.0"
 description = "Command-line tool to check proxy resolution using PAC files"
 authors = ["Javier Correa Guerrero <jcorreag@pm.me>"]
 license = "GPL-3.0"

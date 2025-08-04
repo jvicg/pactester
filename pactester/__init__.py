@@ -10,11 +10,11 @@ try:
     __progname__ = meta["Name"]
     __progdesc__ = meta["Summary"]
 except Exception:
-    __version__ = "dev"
-    __author__ = "Not specified"
-    __email__ = "Not specified"
-    __progname__ = "Not specified"
-    __progdesc__ = "Not specified"
+    __version__ = "v1.0.0"
+    __author__ = "Javier Correa Guerrero"
+    __email__ = "jcorreag@pm.me"
+    __progname__ = "pactester"
+    __progdesc__ = "Command-line tool to check proxy resolution using PAC files"
 
 __progepilog__ = f"""
 examples:

@@ -3,7 +3,9 @@ dist/
 wpad.dat
 !.github/
 !.gitignore
+docs/_build
 *__pycache__*
 !.python-version
+!.readthedocs.yaml
 pactester.egg-info/
 !.pre-commit-config.yaml

@@ -1,10 +1,10 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.poetry]
 name = "pactester"
-version = "0.1.0"
+version = "0.0.0"
 description = "Command-line tool to check proxy resolution using PAC files"
 authors = ["Javier Correa Guerrero <jcorreag@pm.me>"]
 license = "GPL-3.0"
@@ -15,6 +15,9 @@ packages = [
 
 [tool.poetry.scripts]
 pactester = "pactester.main:main"
+
+[tool.poetry.requires-plugins]
+poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"

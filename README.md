@@ -4,7 +4,7 @@
 
 ## Requirements
 
-- Python >= 3.8 and < 3.12
+- Python >= 3.8 and < 3.13
 
 ## Installation
 

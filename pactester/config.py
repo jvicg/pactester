@@ -2,15 +2,14 @@
 
 import logging
 import tempfile
-from pathlib import Path
 from argparse import Namespace
 from dataclasses import dataclass, fields
+from pathlib import Path
 
 import toml
 from platformdirs import user_config_dir
 
 from pactester import __progname__
-
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ class CacheDirCreationFailed(Exception):
     def __init__(self, path: Path, msg: str):
         super().__init__(f"'{path}': {msg}")
         self.path = path
-        self.original_exception = msg
+        self.msg = msg
 
 @dataclass
 class Config:
@@ -32,13 +31,13 @@ class Config:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     CONFIG_FILE = CONFIG_DIR / "config.toml"
 
-    _DEFAULT_CACHE_DIR = Path(tempfile.gettempdir()) / f"{__progname__}-cache"
+    _DEFAULT_CACHE_DIR = Path(tempfile.gettempdir()) / f".{__progname__}_cache"
     _DEFAULT_CACHE_EXPIRES = 24 * 3600
 
     # Options that should not be used together
-    _MUTUALLY_EXCLUSIVE = [
+    _MUTUALLY_EXCLUSIVE = (
         ("pac_url", "pac_file"),
-    ]
+    )
 
     pac_url: str | None = None
     pac_file: str | None = None
@@ -56,17 +55,17 @@ class Config:
             Config: Configuration found on config file or default values if option not in file.
         """
         if not cls.CONFIG_FILE.exists():
-            logger.info(f"Configuration file '{cls.CONFIG_FILE}' was not found.")
+            logger.warning(f"Configuration file '{cls.CONFIG_FILE}' was not found.")
             return cls()
 
-        try:    
+        try:
             data = toml.load(cls.CONFIG_FILE)
             invalid_options = cls._detect_invalid_options(data)
             logger.info(f"Loaded configuration file '{cls.CONFIG_FILE}'. This config may be overrided by CLI.")
 
             for opt in invalid_options:
                 logger.warning(f"Invalid option found in config file: '{opt}'.")
-            
+
             cls._detect_mutually_exclusive(data)
 
             # Return instance. If the option is not found in the config file, default values will be used
@@ -76,7 +75,7 @@ class Config:
             }
 
             return cls(**init_kwargs)
-        
+
         except toml.decoder.TomlDecodeError as e:
             logger.warning(f"Config file couldn't be loaded. Check file syntax: {e}")
             return cls()
@@ -85,12 +84,12 @@ class Config:
     def get_default_cache_dir(cls) -> Path:
         """Return default cache dir."""
         return cls._DEFAULT_CACHE_DIR
-            
+
     @classmethod
     def _detect_invalid_options(cls, data: dict) -> list[str]:
         """
         Function to detect invalid options in the config file.
-        
+
         Args:
             data (dict): Dict with the configuration.
 
@@ -109,18 +108,18 @@ class Config:
             data (dict): Dict with the configuration.
         """
         for exclusive_group in cls._MUTUALLY_EXCLUSIVE:
-            present_keys = [key for key in data.keys() if key in exclusive_group]
+            present_keys = [key for key in data if key in exclusive_group]
             if len(present_keys) > 1:
                 logger.warning(
                     f"Mutually exclusive options found together in config file: '{present_keys}'. "
                     f"This may cause unexpected behaviour. Please, choose only one of them."
                 )
-    
+
 @dataclass
 class Options:
     """
     This objects contains all the options that will be used by the program.
-    The init method build the object from CLI args and config file. 
+    The init method build the object from CLI args and config file.
     Priority: CLI > config file > default.
     """
     def __init__(self, args: Namespace, config: Config):
@@ -129,13 +128,13 @@ class Options:
         self.pac_file:str | None = args.pac_file or config.pac_file
         self.check_dns: bool = args.check_dns or config.check_dns
         self.purge_cache: bool = args.purge_cache
-        self.use_cache: bool = not args.no_cache or config.use_cache
+        self.use_cache: bool = not args.no_cache if args.no_cache is not None else config.use_cache
         self.cache_dir: str | Path = args.cache_dir or config.cache_dir
         self.cache_expires: int = args.cache_expires or config.cache_expires
 
         # Create cache dir
         self._create_cache_dir()
-    
+
     def __iter__(self):
         for key in self.__dict__:
             yield key, getattr(self, key)
@@ -167,4 +166,4 @@ class Options:
             return
 
         # Raise exception if all attemps failed
-        raise CacheDirCreationFailed(fallback_dir, "All attempts to create cache directory failed")
+        raise CacheDirCreationFailed(fallback_dir, "All attempts to create cache directory failed.")

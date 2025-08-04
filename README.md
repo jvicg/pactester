@@ -9,7 +9,7 @@
 ## Installation
 
 ```bash
-pip install pactester-1.0.0-py3-none-any.whl
+pip install pactester
 ```
 
 ## Usage

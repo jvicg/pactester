@@ -92,16 +92,16 @@ def test_config_load_no_warning_on_valid_config(patch_config_paths, config_file,
 def test_config_load_default_values_when_no_config_file(patch_config_paths, config_file, caplog):
     """
     Make sure that Config object has the default values when the config file don't exist
-    Also, check that it prints the expected warning.
+    Also check that it prints the expected warning.
     """
     with caplog.at_level("WARNING"):
         config = Config.load()
 
     assert f"Configuration file '{config_file}' was not found." in caplog.text
 
+    assert not config.check_dns
     assert config.pac_url is None
     assert config.pac_file is None
-    assert not config.check_dns
     assert config.cache_dir == Config._DEFAULT_CACHE_DIR
     assert config.cache_expires == Config._DEFAULT_CACHE_EXPIRES
 
@@ -142,7 +142,7 @@ def test_config_load_invalid_toml_syntax(patch_config_paths, config_file, caplog
 
 def test_detect_invalid_options(config_invalid_data):
     """
-    Test _detect_invalid_options only returns invalid options.
+    Test `detect_invalid_options` only returns invalid options.
     """
     invalid_options = Config._detect_invalid_options(config_invalid_data)
 
@@ -154,7 +154,6 @@ def test_detect_invalid_options(config_invalid_data):
 
 def test_get_default_cache_dir_returns_expected_path():
     """
-    Ensure get_default_cache_dir returns the expected default path.
+    Ensure `get_default_cache_dir` returns the expected default path.
     """
-    expected_path = Config._DEFAULT_CACHE_DIR
-    assert Config.get_default_cache_dir() == expected_path
+    assert Config.get_default_cache_dir() == Config._DEFAULT_CACHE_DIR

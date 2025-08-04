@@ -1,25 +1,19 @@
 #!/usr/bin/env python3
 
+import argparse
+import logging
 import os
 import re
+import socket
 import sys
 import time
-import socket
-import logging
-import argparse
-import requests
 from hashlib import sha1
 
 import pacparser
+import requests
 
-from pactester.config import Config, Options, CacheDirCreationFailed
-from pactester import (
-    __version__,
-    __progname__,
-    __progdesc__,
-    __progepilog__
-)
-
+from pactester import __progdesc__, __progepilog__, __progname__, __version__
+from pactester.config import CacheDirCreationFailed, Config, Options
 
 SUCCESS = 0
 ERR_NO_PAC_FILE = 1
@@ -61,7 +55,7 @@ def gen_pac_file_based_on_timestamp(pac_file: str) -> str:
 
     Args:
         pac_file (str): Path to the PAC.
-    
+
     Returns:
         Path: Object with the file.
     """
@@ -69,48 +63,48 @@ def gen_pac_file_based_on_timestamp(pac_file: str) -> str:
     unique_str = f"{pac_file}:{stat.st_mtime}"
     return gen_sha_hash(unique_str)
 
-def format_pac_file(options: Options) -> str:
+def format_pac_file(opts: Options) -> str:
     """
     Properly format PAC file as utf-8-sig.
-    
+
     Args:
-        options (Options): Object with all the program options.
+        opts (Options): Object with all the program options.
 
     Returns:
         str: Path of the file.
     """
-    cache_file = options.cache_dir / gen_pac_file_based_on_timestamp(options.pac_file) # type: ignore
+    cache_file = opts.cache_dir / gen_pac_file_based_on_timestamp(opts.pac_file) # type: ignore
 
-    if cache_file.exists() and options.use_cache:
+    if cache_file.exists() and opts.use_cache:
         logger.info(f"Using cached formatted PAC file: '{cache_file}'")
         return str(cache_file)
 
-    with open(options.pac_file, "r", encoding="utf-8-sig") as f: # type: ignore
+    with open(opts.pac_file, encoding="utf-8-sig") as f: # type: ignore
         content = f.read()
-    
+
     with open(cache_file, "w", encoding="utf-8") as f:
         f.write(content)
-    
+
     logger.info(f"Formatted PAC file saved at: '{cache_file}'")
     return str(cache_file)
 
-def get_pac_from_http(options: Options) -> str:
+def get_pac_from_http(opts: Options) -> str:
     """
     Download the PAC file and write it into a file.
 
     Args:
-        options (Options): Object with all the program options.
-    
+        opts (Options): Object with all the program options.
+
     Returns:
         str: Path to the downloaded PAC file.
     """
-    pac_file = options.cache_dir / gen_pac_file_based_on_url(options.pac_url) # type: ignore
+    pac_file = opts.cache_dir / gen_pac_file_based_on_url(opts.pac_url) # type: ignore
 
     # Get file from cache if exists and didn't expire
-    if pac_file.exists() and options.use_cache:
+    if pac_file.exists() and opts.use_cache:
         cache_age = time.time() - pac_file.stat().st_mtime
-        
-        if cache_age < options.cache_expires:
+
+        if cache_age < opts.cache_expires:
             logger.info(f"Using cached PAC file: '{pac_file}'")
             return str(pac_file)
         else:
@@ -118,13 +112,13 @@ def get_pac_from_http(options: Options) -> str:
             pac_file.unlink() # Delete file since it expired
 
     # Download if cache file expires or doesn't exist
-    logger.info(f"Downloading PAC from: '{options.pac_url}'")
-    r = requests.get(options.pac_url) # type: ignore
+    logger.info(f"Downloading PAC from: '{opts.pac_url}'")
+    r = requests.get(opts.pac_url) # type: ignore
     r.raise_for_status()
 
     with open(pac_file, "w", encoding="utf-8") as f:
         f.write(r.text)
-    
+
     logger.info(f"Saved PAC to cache: '{pac_file}'")
     return str(pac_file)
 
@@ -158,7 +152,7 @@ def format_hostname(hostname: str) -> str:
     Returns:
         str: Formatted URL.
     """
-    return f"http://{hostname}" 
+    return f"http://{hostname}"
 
 def is_resolvable(host: str) -> bool:
     """
@@ -173,13 +167,13 @@ def is_resolvable(host: str) -> bool:
     try:
         socket.gethostbyname(host)
         return True
-    
+
     except socket.gaierror:
         return False
 
 def is_url(url: str) -> bool:
     """
-    Check if the passed string has URL format. 
+    Check if the passed string has URL format.
     E.g: http://example.com returns True; example.com returns False
 
     Args:
@@ -193,7 +187,7 @@ def is_url(url: str) -> bool:
 def build_arg_parse() -> argparse.ArgumentParser:
     """
     Function to build the argparse object.
-    
+
     Returns:
         argparse.ArgumentParser: Object responsible of managing the arguments.
     """
@@ -215,11 +209,11 @@ def build_arg_parse() -> argparse.ArgumentParser:
     exclusive_group = parser.add_mutually_exclusive_group(required=False)
 
     exclusive_group.add_argument(
-        "-u", "--pac-url", 
+        "-u", "--pac-url",
         default=None,
         metavar="URL",
         type=str,
-        help=f"Get the PAC file from an HTTP server."
+        help="Get the PAC file from an HTTP server."
     )
 
     exclusive_group.add_argument(
@@ -309,16 +303,16 @@ def setup_logging(debug: bool, verbose: bool) -> None:
 def main():
     parser = build_arg_parse()
     args = parser.parse_args()
-    
+
     # Load config file and setup logging
     setup_logging(debug=args.debug, verbose=args.verbose)
     config = Config.load()
 
     try:
-        options = Options(args, config)
+        opts = Options(args, config)
 
         # Raise error if no pac_url or pac_file were provided
-        if options.pac_url is None and options.pac_file is None:
+        if opts.pac_url is None and opts.pac_file is None:
             logger.error(
                 f"You must provide either an URL to get the PAC or a path to a PAC file. "
                 f"Use config file '{Config.CONFIG_FILE}' or provide it with -f or -u params."
@@ -326,48 +320,51 @@ def main():
             sys.exit(ERR_NO_DATA_PROVIDED)
 
         # Log the selected options for debug level
-        for key, value in options:
+        for key, value in opts:
             if value is not None:
                 logger.debug(f"Selected '{key}: {value}'.")
 
         # Clear cache directory if specified
-        purge_cache_dir(options.cache_dir) if options.purge_cache else None
+        purge_cache_dir(opts.cache_dir) if opts.purge_cache else None
 
         pac_file_formatted = (
-            format_pac_file(options) if options.pac_file is not None
-            else get_pac_from_http(options) 
+            format_pac_file(opts) if opts.pac_file is not None
+            else get_pac_from_http(opts)
         )
 
         pacparser.init()
         pacparser.parse_pac_file(pac_file_formatted)
 
-        for hostname in options.hostnames:
+        for hostname in opts.hostnames:
             formatted_hostname = hostname if is_url(hostname) else format_hostname(hostname)
             proxy = pacparser.find_proxy(formatted_hostname)
 
             # Check DNS if flag specified
-            if options.check_dns and not is_resolvable(hostname):
+            if opts.check_dns and not is_resolvable(hostname):
                 logger.warning(f"Hostname '{hostname}' could not be resolved via DNS.")
 
             sys.stdout.write(f"RESULT: {hostname} -> {proxy}\n")
             sys.stdout.flush()
-    
+
     except CacheDirCreationFailed as e:
         logger.error(f"Error creating cache dir: {e}")
         sys.exit(ERR_COULD_NOT_CREATE_CACHE_DIR)
-    
+
     except requests.RequestException as e:
         logger.error(f"Error downloading the PAC file: '{e}'")
         sys.exit(ERR_UNABLE_TO_DOWNLOAD_PAC)
 
-    except FileNotFoundError as e:
-        logger.error(f"The PAC file '{args.pac_file}' was not found. Provide it with -f FILE or use -u URL to download.")
+    except FileNotFoundError:
+        logger.error(
+            f"The PAC file '{args.pac_file}' was not found."
+            f"Provide it with -f FILE or use -u URL to download."
+        )
         sys.exit(ERR_NO_PAC_FILE)
 
     except Exception as e:
         logger.error(f"The PAC file couldn't be parsed: {e}")
         sys.exit(ERR_COULD_NOT_PARSE_PAC_FILE)
-    
+
     finally:
         pacparser.cleanup()
 

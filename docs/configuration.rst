@@ -15,6 +15,8 @@ Example configuration file:
 
 .. code-block:: toml
 
+  # config.toml
+
    pac_url = "http://example.com/wpad.dat"
    pac_file = "/path/to/local/wpad.dat"
    check_dns = false

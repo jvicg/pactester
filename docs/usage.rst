@@ -1,7 +1,46 @@
 Usage
 =====
 
-Pactester is a command-line tool designed to test PAC/WPAD files quickly and easily. Below are some common usage examples and explanations of available options.
+The only **required** params are hostname/s and either the PAC url or PAC file path, the rest of the options will use default values if excluded. 
+
+.. note::
+   ``--pac-url`` and ``--pac-file`` are mutually exclusive. You have to choose one of them only.
+
+Parameters
+----------
+
+- ``-u, --pac-url URL``  
+  Specify a URL to download the PAC/WPAD file from.
+
+- ``-f, --pac-file FILE``  
+  Use a local PAC file path instead of downloading.
+
+- ``-d, --check-dns``  
+  Check if each hostname can be resolved via DNS before testing the proxy. Default to **true**.
+
+- ``-p, --purge-cache``  
+  Remove all cached PAC files and related data.
+
+- ``-c, --cache-dir``  
+  Specify a custom directory for cache storage.
+
+- ``-e, --cache-expires``  
+  Set cache expiration time in seconds (default is **86400**).
+
+- ``-n, --no-cache``  
+  Disable caching entirely; always fetch fresh PAC files.
+
+- ``-v, --verbose``  
+  Increase output verbosity for more detailed logs.
+
+- ``-vvv, --debug``  
+  Enable debug mode with very detailed logging for troubleshooting.
+
+- ``--version``  
+  Display the current version of Pactester.
+
+Examples
+--------
 
 Basic usage using a local PAC file:
 
@@ -34,42 +73,6 @@ Example with DNS check and verbose output:
    pactester -u http://example.com/wpad.dat --check-dns -v example.com intranet.local
 
 This downloads the PAC file, verifies DNS resolution for each hostname, and prints verbose logs.
-
-Available options
------------------
-
-- ``-u, --pac-url``  
-  Specify a URL to download the PAC/WPAD file from.
-
-- ``-f, --pac-file``  
-  Use a local PAC file path instead of downloading.
-
-- ``--check-dns``  
-  Check if each hostname can be resolved via DNS before testing the proxy.
-
-- ``--purge-cache``  
-  Remove all cached PAC files and related data.
-
-- ``-c, --cache-dir``  
-  Specify a custom directory for cache storage (default is usually a system cache folder).
-
-- ``-e, --cache-expires``  
-  Set cache expiration time in seconds (e.g., 3600 for 1 hour).
-
-- ``-n, --no-cache``  
-  Disable caching entirely; always fetch fresh PAC files.
-
-- ``-v, --verbose``  
-  Increase output verbosity for more detailed logs.
-
-- ``-vvv, --debug``  
-  Enable debug mode with very detailed logging for troubleshooting.
-
-- ``--version``  
-  Display the current version of Pactester.
-
-.. note::
-   ``-pac-url`` and ``--pac-file`` are mutually exclusive. You have to choose one of them only.
 
 -----------
 

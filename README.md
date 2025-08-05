@@ -30,7 +30,7 @@ Pactester can be installed using pip:
 pip install pactester
 ```
 
-You can also download the wheel file from the [releases page](https://github.com/jvicg/pactester/releases/tag/v1.0.0).
+Alternatively, you may download the wheel file from the [releases page](https://github.com/jvicg/pactester/releases/tag/v1.0.0).
 
 ## License
 

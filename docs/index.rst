@@ -24,7 +24,7 @@ Release |version|.
     :target: https://github.com/jvicg/pactester/blob/main/LICENSE
     :alt: License: GPL v3
 
-A CLI tool to easily test PAC/WPAD files in a cross-platform way.  
+A CLI tool to easily test PAC/WPAD files.
 It provides a straightforward command-line interface to check the outgoing proxy for a given host or URL.
 
 ---------------------------------------------------------------
@@ -52,7 +52,7 @@ Pactester can be installed using pip:
    pip install pactester
 
 You can also download the wheel file from the
-`releases page <https://github.com/jvicg/pactester/releases/tag/v1.0.0>`_.
+`releases page <https://github.com/jvicg/pactester/releases>`_.
 
 Features
 --------

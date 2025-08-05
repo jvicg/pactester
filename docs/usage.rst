@@ -22,10 +22,10 @@ Parameters
   Remove all cached PAC files and related data.
 
 - ``-c, --cache-dir``  
-  Specify a custom directory for cache storage (default is usually a system cache folder).
+  Specify a custom directory for cache storage.
 
 - ``-e, --cache-expires``  
-  Set cache expiration time in seconds (e.g., 3600 for 1 hour).
+  Set cache expiration time in seconds (default is **86400**).
 
 - ``-n, --no-cache``  
   Disable caching entirely; always fetch fresh PAC files.
